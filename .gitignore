@@ -1,9 +1,10 @@
 latest_version
-ignore/
-deploy/
+ignore
+deploy
 git/
 *.host
 release
 .project
+.*.sw?
 
 .DS_Store
