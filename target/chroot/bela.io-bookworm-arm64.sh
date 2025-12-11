@@ -192,6 +192,9 @@ apt-get install -y \
 	nodejs \
 	# this line left blank
 
+#fixup for libevl
+echo "/usr/evl/lib" > /etc/ld.so.conf.d/evl.conf
+
 # use clang 15 because 14 is buggy
 sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100
 sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
@@ -232,14 +235,14 @@ git remote add bela https://github.com/BelaPlatform/BeagleBoard-DeviceTrees.git
 git fetch bela v6.12.x-Beagle
 git checkout v6.12.x-Beagle
 git reset --hard bela/v6.12.x-Beagle
-# build and install overlays
-./build_n_install.sh
+# build overlays
+./build_n_install.sh # despite the name it only builds when in chroot
 
 ### System customisation
 
 # the rtc module resets the date to 1/1/1970 by touching /var/lib/systemd/timesync/clock.
 # Fix it by blacklisting it:
-echo rtc_ti_k3 >> /etc/modprobe.d/blacklist.conf
+echo blacklist rtc_ti_k3 >> /etc/modprobe.d/blacklist.conf
 
 ### stop and disable services. Some of these may not be installed, hence the || true
 # BB IDE running on :3000
@@ -319,6 +322,7 @@ source /usr/share/vim/vim90/ftplugin.vim
 source /usr/share/vim/vim90/indent.vim
 set mouse=
 color desert
+set shortmess-=S
 HEREDOC
 
 cat << 'HEREDOC' > ~/.gitconfig
@@ -333,6 +337,12 @@ cat << 'HEREDOC' > ~/.gitconfig
 [diff]
 	wordregex = [[:alnum:]]+|[^[:space:]]
 HEREDOC
+
+### system configuration
+
+# swap ip addresses of usb networks and add dhcp in addition to static ip
+sed -i "s:\(Address=192\.168\.\)7\(\.2/24\):\16\2\nDHCP=yes:" /etc/systemd/network/usb1.network
+sed -i "s:\(Address=192\.168\.\)6\(\.2/24\):\17\2\nDHCP=yes:" /etc/systemd/network/usb0.network
 
 cat << 'HEREDOC' > /etc/modules-load.d/bela.conf
 # loading drivers needed by bela on boot
