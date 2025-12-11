@@ -1,26 +1,8 @@
-#!/bin/sh -e
-#
-# Copyright (c) 2014-2021 Robert Nelson <robertcnelson@gmail.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-
+set -eo pipefail
+set -x
 export LC_ALL=C
+
+CORES=$(getconf _NPROCESSORS_ONLN)
 
 #contains: rfs_username, release_date
 if [ -f /etc/rcn-ee.conf ] ; then
@@ -56,7 +38,6 @@ git_clone () {
 	qemu_command="git clone ${git_repo} ${git_target_dir} --depth 1 || true"
 	qemu_warning
 	git clone ${git_repo} ${git_target_dir} --depth 1 || true
-	chown -R 1000:1000 ${git_target_dir}
 	sync
 	echo "${git_target_dir} : ${git_repo}" >> /opt/source/list.txt
 }
@@ -66,7 +47,6 @@ git_clone_branch () {
 	qemu_command="git clone -b ${git_branch} ${git_repo} ${git_target_dir} --depth 1 || true"
 	qemu_warning
 	git clone -b ${git_branch} ${git_repo} ${git_target_dir} --depth 1 || true
-	chown -R 1000:1000 ${git_target_dir}
 	sync
 	echo "${git_target_dir} : ${git_repo}" >> /opt/source/list.txt
 }
@@ -76,7 +56,6 @@ git_clone_full () {
 	qemu_command="git clone ${git_repo} ${git_target_dir} || true"
 	qemu_warning
 	git clone ${git_repo} ${git_target_dir} || true
-	chown -R 1000:1000 ${git_target_dir}
 	sync
 	echo "${git_target_dir} : ${git_repo}" >> /opt/source/list.txt
 }
@@ -138,50 +117,12 @@ setup_desktop () {
 
 install_git_repos () {
 	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-5.10-ti"
-	git_branch="v5.10.x-ti-unified"
-	git_clone_branch
-
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.1-Beagle"
-	git_branch="v6.1.x-Beagle"
-	git_clone_branch
-
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.6-Beagle"
-	git_branch="v6.6.x-Beagle"
-	git_clone_branch
-
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
 	git_target_dir="/opt/source/dtb-6.12-Beagle"
 	git_branch="v6.12.x-Beagle"
 	git_clone_branch
 
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.16.x"
-	git_branch="v6.16.x"
-	git_clone_branch
-
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.17.x"
-	git_branch="v6.17.x"
-	git_clone_branch
-
-	git_repo="https://github.com/beagleboard/BeagleBoard-DeviceTrees.git"
-	git_target_dir="/opt/source/dtb-6.18.x"
-	git_branch="v6.18.x"
-	git_clone_branch
-
-	git_repo="https://github.com/rm-hull/spidev-test"
-	git_target_dir="/opt/source/spidev-test"
-	git_clone
-
 	git_repo="https://github.com/TexasInstruments/open-pru.git"
 	git_target_dir="/opt/source/open-pru"
-	git_clone
-
-	git_repo="https://github.com/beagleboard/vsx-examples.git"
-	git_target_dir="/opt/vsx-examples"
 	git_clone
 }
 
@@ -189,10 +130,10 @@ other_source_links () {
 	chown -R ${rfs_username}:${rfs_username} /opt/source/
 }
 
-is_this_qemu
+#is_this_qemu
 
-setup_system
-setup_desktop
+#setup_system
+#setup_desktop
 
 if [ -f /usr/bin/git ] ; then
 	git config --global user.email "${rfs_username}@example.com"
@@ -200,7 +141,231 @@ if [ -f /usr/bin/git ] ; then
 	install_git_repos
 	git config --global --unset-all user.email
 	git config --global --unset-all user.name
-	chown ${rfs_username}:${rfs_username} /home/${rfs_username}/.gitconfig
 fi
-other_source_links
-#
+#other_source_links
+
+### bela customisation proper starts here
+
+### fixup users and hostname
+
+# delete user
+if [ ! x"${USER}" = xroot ]; then
+	#copy personalised . files to the root user
+	GLOBIGNORE=".:.." cp ${HOME}/.bashrc ${HOME}/.profile /root/
+	deluser --remove-home ${USER}
+fi
+USER=root
+USERNAME=${USER}
+HOME=/root
+
+# clear root password
+passwd -d root
+
+# allow ssh login by root
+cat << 'HEREDOC' > /etc/ssh/sshd_config.d/bela.conf
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+UsePAM no
+X11Forwarding yes
+PrintMotd yes
+PrintLastLog no
+AcceptEnv LANG LC_*
+HEREDOC
+
+echo 'PINS="/sys/kernel/debug/pinctrl/4084000.pinctrl-pinctrl-single/pins /sys/kernel/debug/pinctrl/f4000.pinctrl-pinctrl-single/pins"' >> ~/.bashrc
+echo "export HISTIGNORE='reset:fg:bg:clear:exit:ls:reboot:poweroff:shutdown'" >> ~/.bashrc
+
+echo "en_GB.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen
+
+### add more apt repos and install more stuff
+# get more repos
+mkdir -p /etc/sources.list.d
+echo "deb [trusted=yes] http://deb.bela.io/apt-repo stable main" > /etc/apt/sources.list.d/bela.list
+wget https://deb.nodesource.com/setup_22.x
+bash -x setup_22.x # includes apt-get update
+
+# apt-get update not needed because it's already performed by node's setup_*.x above
+apt-get install -y \
+	bela-all \
+	nodejs \
+	# this line left blank
+
+# use clang 15 because 14 is buggy
+sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100
+sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100
+
+# dependencies for the IDE
+# don't know why we need to resintall libc6-dev, but without it the build of node-pty fails
+sudo apt install --reinstall libc6-dev:arm64
+npm install --global @parcel/watcher-linux-arm64-glibc@2.5.1 @parcel/watcher@2.5.1 node-pty@1.0.0
+
+# undo the chown done by chroot
+chown -R root /opt/
+
+### manually download and install programs
+cd /opt
+git clone --depth=1 --branch v1.4.4 https://github.com/mattgodbolt/seasocks.git
+mkdir -p seasocks/build
+cd seasocks/build
+cmake .. -DDEFLATE_SUPPORT=OFF -DUNITTESTS=OFF -DSEASOCKS_SHARED=ON
+make -j${CORES} seasocks
+cmake -P cmake_install.cmake
+ldconfig
+
+cd /opt
+git clone --depth=1 https://github.com/giuliomoro/am335x_pru_package.git
+cd am335x_pru_package/pru_sw/utils/pasm_source
+./linuxbuild
+cp -v ../../utils/pasm /usr/local/bin
+
+cd /opt
+git clone --depth=1 https://github.com/giuliomoro/prudebug.git
+cd prudebug
+make -j${CORES}
+make -j${CORES} prudis
+cp -v prudis prudebug /usr/local/bin
+
+cd /opt/source/dtb-6.12-Beagle
+git remote add bela https://github.com/BelaPlatform/BeagleBoard-DeviceTrees.git
+git fetch bela v6.12.x-Beagle
+git checkout v6.12.x-Beagle
+git reset --hard bela/v6.12.x-Beagle
+# build and install overlays
+./build_n_install.sh
+
+### System customisation
+
+# the rtc module resets the date to 1/1/1970 by touching /var/lib/systemd/timesync/clock.
+# Fix it by blacklisting it:
+echo rtc_ti_k3 >> /etc/modprobe.d/blacklist.conf
+
+### stop and disable services. Some of these may not be installed, hence the || true
+# BB IDE running on :3000
+systemctl disable code-server@debian.service || true
+# node-red (some dataflow language for IoT)
+systemctl disable  nodered  || true
+# OTA update client
+systemctl disable mender-client || true
+# Debian auto updates
+systemctl disable unattended-upgrades || true
+
+# disable swap
+echo 0 | sudo tee /proc/sys/vm/swappiness # right now
+echo vm.swappiness=0 | sudo tee -a /etc/sysctl.conf # after reboot
+
+### Build Bela
+echo "~~~~ building Bela ~~~~"
+cd /root/Bela
+mkdir -p projects
+cp -rv templates/basic projects/
+#make -j${CORES} all PROJECT=basic AT=
+#make -j${CORES} lib
+#make -j${CORES} -f Makefile.libraries all
+#note : doxygen comes prebuilt
+
+#setup repo for future operation
+git init .
+git remote add origin https://github.com/BelaPlatform/Bela.git
+git fetch --depth=1 origin master
+git reset --soft origin/master
+
+echo "~~~~ Setting up distcc shorthands ~~~~"
+cat << 'HEREDOC' > /usr/local/bin/clang-15-arm64
+#!/bin/bash
+clang-15 $@
+HEREDOC
+
+cat << 'HEREDOC' > /usr/local/bin/clang++-15-arm64
+#!/bin/bash
+clang++-15 $@ -stdlib=libstdc++
+HEREDOC
+
+cat << 'HEREDOC' > /usr/local/bin/distcc-clang
+#!/bin/bash
+export DISTCC_HOSTS=192.168.7.1
+export DISTCC_VERBOSE=0
+export DISTCC_FALLBACK=0
+export DISTCC_BACKOFF_PERIOD=0
+distcc clang-15-arm64 $@
+HEREDOC
+
+cat << 'HEREDOC' > /usr/local/bin/distcc-clang++
+#!/bin/bash
+export DISTCC_HOSTS=192.168.7.1
+export DISTCC_VERBOSE=0
+export DISTCC_FALLBACK=0
+export DISTCC_BACKOFF_PERIOD=0
+distcc clang++-15-arm64 $@
+HEREDOC
+
+chmod +x /usr/local/bin/clang*-*-arm* /usr/local/bin/distcc-clang*
+
+# more user configuration defaults
+cat << 'HEREDOC' > ~/.gdbinit
+set history save
+set history remove-duplicates 0
+set history filename ~/.gdb_history
+HEREDOC
+
+cat << 'HEREDOC' > /root/.vimrc
+source /usr/share/vim/vim90/defaults.vim
+source /usr/share/vim/vim90/syntax/syntax.vim
+source /usr/share/vim/vim90/syntax/synload.vim
+source /usr/share/vim/vim90/syntax/syncolor.vim
+source /usr/share/vim/vim90/filetype.vim
+source /usr/share/vim/vim90/ftplugin.vim
+source /usr/share/vim/vim90/indent.vim
+set mouse=
+color desert
+HEREDOC
+
+cat << 'HEREDOC' > ~/.gitconfig
+# This is Git's per-user configuration file.
+[merge]
+	tool = vimdiff
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[diff]
+	wordregex = [[:alnum:]]+|[^[:space:]]
+HEREDOC
+
+cat << 'HEREDOC' > /etc/modules-load.d/bela.conf
+# loading drivers needed by bela on boot
+
+libcomposite
+# for MIDI
+snd_usb_audio
+# for MIDI
+snd_usbmidi_lib
+# for PRU
+pru_rproc
+spidev
+HEREDOC
+
+cat << 'HEREDOC' > /etc/motd
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+
+ ____  _____ _        _
+| __ )| ____| |      / \
+|  _ \|  _| | |     / _ \
+| |_) | |___| |___ / ___ \
+|____/|_____|_____/_/   \_\
+
+The platform for ultra-low latency audio and sensor processing
+
+http://bela.io
+
+arm64 image for Gem on PocketBeagle 2
+
+HEREDOC

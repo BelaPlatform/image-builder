@@ -1383,9 +1383,6 @@ if [ -n "${chroot_script}" -a -r "${DIR}/target/chroot/${chroot_script}" ] ; the
 
 	echo "Calling chroot_script script: ${chroot_script}"
 	sudo cp -v "${DIR}/.project" "${tempdir}/etc/oib.project"
-	dst="${tempdir}"/../pre-chroot-script
-	umount "$dst"/{run,sys,proc,dev/pts} || true
-	rsync -a --delete-before --exclude proc --exclude sys --exclude dev --exclude run "${tempdir}"/ "${dst}"
 	sudo cp -v "${DIR}/target/chroot/${chroot_script}" "${tempdir}/final.sh"
 	sudo chroot "${tempdir}" /bin/bash -e final.sh
 	sudo rm -f "${tempdir}/final.sh" || true
@@ -1443,7 +1440,7 @@ cat > "${DIR}/cleanup_script.sh" <<-__EOF__
 			rm -rf /etc/apt/apt.conf || true
 		fi
 		mountpoint /var/cache/apt/archives && {
-			# we have deb_cache set and we want to preserve it
+			: # we have deb_cache set and we want to preserve it
 		} || {
 			apt-get clean
 		}
