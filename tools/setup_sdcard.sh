@@ -964,6 +964,10 @@ populate_rootfs () {
 		if [ ! "x${extlinux_timeout}" = "x" ] ; then
 			sed -i "s/timeout[\t ]\+[0-9]*[\t ]*/timeout ${extlinux_timeout}/" "${wfile}"
 		fi
+
+		if [ ! "x${extlinux_overlays}" = "x" ] ; then
+			sed -i "s:#fdtoverlays /overlays/<file>.dtbo:fdtoverlays ${extlinux_overlays}:" "${wfile}"
+		fi
 	else
 		wfile="${TEMPDIR}/disk/boot/uEnv.txt"
 		echo "#Docs: http://elinux.org/Beagleboard:U-boot_partitioning_layout_2.0" > ${wfile}
