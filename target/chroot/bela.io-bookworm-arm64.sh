@@ -273,10 +273,8 @@ cp -rv templates/basic projects/
 export BELA_RT_BACKEND=evl
 export IS_AM62_PB2=1
 make -C resources/tools/bela-extract-dependencies bela-extract-dependencies install || true
-make -j${CORES} all PROJECT=basic AT= || true
-make -j${CORES} lib || true
-make -C resources/tools/board_detect board_detect install || true
-make -C resources/tools/bela-cape-btn all install || true
+make -j${CORES} all PROJECT=basic AT=
+make -j${CORES} lib
 #note : doxygen comes prebuilt
 
 #setup repo for future operation
