@@ -31,6 +31,7 @@ chroot_mount_run () {
 }
 
 chroot_mount () {
+	mkdir -p "${tempdir}"/{sys,proc,dev}
 	if [ "$(mount | grep ${tempdir}/sys | awk '{print $3}')" != "${tempdir}/sys" ] ; then
 		sudo mount -t sysfs sysfs "${tempdir}/sys"
 	fi
@@ -39,13 +40,14 @@ chroot_mount () {
 		sudo mount -t proc proc "${tempdir}/proc"
 	fi
 
-	if [ ! -d "${tempdir}/dev/pts" ] ; then
-		sudo mkdir -p ${tempdir}/dev/pts || true
+	if [ "$(mount | grep ${tempdir}/dev | awk '{print $3}')" != "${tempdir}/dev" ] ; then
+		sudo mount --bind /dev "${tempdir}/dev"
 	fi
 
 	if [ "$(mount | grep ${tempdir}/dev/pts | awk '{print $3}')" != "${tempdir}/dev/pts" ] ; then
 		sudo mount -t devpts devpts "${tempdir}/dev/pts"
 	fi
+
 }
 
 chroot_umount () {
@@ -56,6 +58,17 @@ chroot_umount () {
 
 		if [ "$(mount | grep ${tempdir}/dev/pts | awk '{print $3}')" = "${tempdir}/dev/pts" ] ; then
 			echo "Log: ERROR: umount [${tempdir}/dev/pts] failed..."
+			exit 1
+		fi
+	fi
+
+	if [ "$(mount | grep ${tempdir}/dev | awk '{print $3}')" = "${tempdir}/dev" ] ; then
+		echo "Log: umount: [${tempdir}/dev]"
+		sync
+		sudo umount -fl "${tempdir}/dev"
+
+		if [ "$(mount | grep ${tempdir}/dev| awk '{print $3}')" = "${tempdir}/dev" ] ; then
+			echo "Log: ERROR: umount [${tempdir}/dev] failed..."
 			exit 1
 		fi
 	fi
