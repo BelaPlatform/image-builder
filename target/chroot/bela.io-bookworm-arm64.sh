@@ -277,8 +277,13 @@ export BELA_RT_BACKEND=evl
 export IS_AM62_PB2=1
 make -C resources/tools/bela-extract-dependencies bela-extract-dependencies install || true
 make -j${CORES} all PROJECT=basic AT= || true
+
 # fixup : the above may have failed because of parallelism, (hence the || true) so we retry without -j
 make all PROJECT=basic AT=
+
+# prebuild as much stuff as we can think of
+make PROJECT=basic build/core/default_libpd_render.o
+make -j${CORES} libraries LIBRARIES_ARGS=all
 make -j${CORES} lib
 #note : doxygen comes prebuilt
 
