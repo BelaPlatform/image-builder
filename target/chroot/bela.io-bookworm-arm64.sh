@@ -194,6 +194,9 @@ apt-get install -y \
 	apt-offline=1.8.6-bela \
 	# this line left blank
 
+#fixup for bela-supercollider, which requires libfftw3 but is not explicit about it
+apt-get install -y libfftw3-dev
+
 systemctl enable bela-usb-gadgets
 
 #fixups for libevl
