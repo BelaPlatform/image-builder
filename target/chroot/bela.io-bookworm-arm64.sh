@@ -190,6 +190,7 @@ bash -x setup_22.x # includes apt-get update
 apt-get install -y \
 	bela-all \
 	bela-utils \
+	bela-ide \
 	nodejs \
 	apt-offline=1.8.6-bela \
 	# this line left blank
