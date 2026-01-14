@@ -391,6 +391,8 @@ The platform for ultra-low latency audio and sensor processing
 
 http://bela.io
 
-arm64 image for Gem on PocketBeagle 2
+arm64 image for Bela Gem on PocketBeagle 2
 
 HEREDOC
+
+printf "Bela image, v1.0.0, `date "+%e %B %Y"`\n\n" | tee -a /etc/motd
